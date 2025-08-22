@@ -5,6 +5,8 @@ import re
 import json
 import glob
 from collections import defaultdict
+from pathlib import Path
+from ast import Try
 
 # Folders to check
 FOLDERS_TO_CHECK = [
@@ -114,16 +116,18 @@ def main():
         else:
             next_id_numbers[prefix] = 1
 
+
     # Second pass: check new files against existing IDs
     for filepath in new_files_in_pr:
         # Skip non-markdown files
         if not filepath.endswith('.md'):
             continue
             
-        # Skip index.md files
-        if os.path.basename(filepath) == "index.md":
-            continue
-            
+      # Skip index.md files
+      if os.path.basename(filepath) == "index.md":
+            print(f"Skipping {filepath}")
+            continue  
+          
         # Determine which prefix pattern this file uses
         prefix_match = None
         for key in ID_PATTERNS:
@@ -136,7 +140,7 @@ def main():
             continue  # Skip files without a matching pattern
             
         pattern = ID_PATTERNS[prefix_match]
-        filename = os.path.basename(filepath)
+        filename = Path(filepath).name
         
         print(f"Checking file: {filepath} with pattern: {pattern}")
         
@@ -163,6 +167,8 @@ def main():
             
             # Increment the next ID number for this prefix
             next_id_numbers[id_prefix] = next_id_num + 1
+
+            existing_ids_by_prefix.setdefault(id_prefix, []).append(id_number) # add this code for guard missing key.
             
             duplicates.append({
                 "file_path": filepath,
@@ -188,6 +194,13 @@ def main():
     if has_duplicates:
         with open("duplicate_files.json", "w") as f:
             json.dump(duplicates, f)
+
+    # Add error handling for file operations.
+        try:
+           with open("duplicate_files.json", "w") as f:
+                json.dump(duplicates, f)
+        except IOError as e:
+            print(f"Error writing duplicates file: {e}")
         
         # Print information about the duplicates
         print(f"Found {len(duplicates)} duplicate file IDs in new files:")
